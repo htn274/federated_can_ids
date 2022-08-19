@@ -1,69 +1,69 @@
-import torch
 import pandas as pd
 import numpy as np
 from pathlib import Path
-from sklearn.model_selection import StratifiedShuffleSplit
-from asyncio import as_completed
 from concurrent import futures
+from functools import partial
+import tqdm 
+
+np.random.seed(0)
 
 class Writer:
-    def __init__(self, outdir, start_idx=0):
-        self.outdir = Path(outdir)
+    def __init__(self, outdir, start_idx=0, is_train=True):
+        self.outdir = Path(outdir)/ ('train' if is_train else 'val')
         self.outdir.mkdir(parents=True, exist_ok=True)
         self.idx = start_idx
     def write(self, X, y):
-        save_file = self.outdir / f'{self.idx}.pt'
-        torch.save((X, y), save_file)
+        save_file = self.outdir / f'{self.idx}.npz'
+        np.savez_compressed(save_file, X=X, y=y)
         self.idx += 1
-        # print(self.idx)
+    def start(self):
+        print('Start writing to: ', self.outdir)
 
 def write_to_file(writer, X, y):
+    writer.start()
     try:
-        for xi, yi in zip(X, y):
+        for xi, yi in tqdm.tqdm(zip(X, y)):
             writer.write(xi, yi)
     except: return False
     return True
 
-def process_dataset(sss, X, y, train_writers, val_writers, num_splits):
-    with futures.ThreadPoolExecutor(num_splits) as exec:
-        todo = []
-        for i, (train_idx, test_idx) in enumerate(sss.split(X, y)):
-            print(i, len(train_idx), len(test_idx))
-            X_train = X[train_idx]
-            y_train = y[train_idx]
-            X_val = X[test_idx]
-            y_val = y[test_idx]
-            future = exec.submit(write_to_file, train_writers[i], X_train, y_train)
-            todo.append(future)
-            future = exec.submit(write_to_file, val_writers[i], X_val, y_val)
-            todo.append(future)
+def train_test_split(N, test_fraction=0.3):
+    test_size = int(N * test_fraction)
+    indices = np.random.permutation(N) 
+    test_idx, train_idx = indices[:test_size], indices[test_size:]
+    return train_idx, test_idx
+    
+def process_dataset(X, y, train_writer, val_writer, test_fraction=0.3):
+    train_idx, test_idx = train_test_split(y.shape[0], test_fraction)
+    X_train, y_train = X[train_idx], y[train_idx]
+    X_test, y_test = X[test_idx], y[test_idx]
+    # args = ((train_writer, X_train, y_train), 
+    #         (val_writer, X_test, y_test))
+    # with futures.ProcessPoolExecutor(2) as executor:
+    #     print('Future')
+    #     res = list(executor.map(lambda x: write_to_file(*x), args))
+    write_to_file(train_writer, X_train, y_train)
+    write_to_file(val_writer, X_test, y_test)
+    return train_idx, test_idx 
 
-        sucess = 0
-        fail = 0
-        for future in futures.as_completed(todo):
-            res = future.result()
-            if res:
-                sucess += 1
-            else:
-                fail += 1
-    return sucess, fail
-
-def main(indir, outdir, attacks, num_splits=5, test_size=0.3):
-    train_writers = [Writer(outdir=outdir + f'train/{i + 1}/') for i in range(num_splits)]
-    val_writers = [Writer(outdir=outdir + f'val/{i + 1}/') for i in range(num_splits)]
-    sss = StratifiedShuffleSplit(n_splits=num_splits, test_size=test_size)
-    for a in attacks:
-        filename = f'{a}.pt'
+def main(indir, outdir, attacks, split_id=1, test_fraction=0.3):
+    outdir = Path(outdir) / str(split_id)
+    train_writer = Writer(outdir=outdir)
+    val_writer = Writer(outdir=outdir, is_train=False)
+    normals = ['Normal_' + x for x in attacks]
+    files = attacks + normals
+    for a in files:
+        filename = f'{a}.npz'
         filename = Path(indir) / filename
         print('Processing: ', filename)
-        X, y = torch.load(filename)
-        sss.get_n_splits(X, y)
-        sucess, fail = process_dataset(sss, X, y, train_writers, val_writers, num_splits)
-        print(f'Sucess: {sucess} - Fails: {fail}')
-        # print(train_writers[0].idx)
+        data = np.load(filename)
+        X, y = data['X'], data['y']
+        y = y.squeeze()
+        train_idx, test_idx = process_dataset(X, y, train_writer, val_writer, test_fraction)
+        np.savez_compressed(outdir / 'idex.npz', train=train_idx, test=test_idx)
 
 if __name__ == '__main__':
     indir = '../Data/CHD_w29_s14_ID_Data/wavelet/'
     outdir = '../Data/CHD_w29_s14_ID_Data/'
     attack_list = ['DoS', 'Fuzzy', 'gear', 'RPM']
-    main(indir, outdir, attack_list, num_splits=5, test_size=0.3)
+    main(indir, outdir, attack_list, split_id=1, test_fraction=0.3)
