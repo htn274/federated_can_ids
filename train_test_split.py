@@ -37,11 +37,6 @@ def process_dataset(X, y, train_writer, val_writer, test_fraction=0.3):
     train_idx, test_idx = train_test_split(y.shape[0], test_fraction)
     X_train, y_train = X[train_idx], y[train_idx]
     X_test, y_test = X[test_idx], y[test_idx]
-    # args = ((train_writer, X_train, y_train), 
-    #         (val_writer, X_test, y_test))
-    # with futures.ProcessPoolExecutor(2) as executor:
-    #     print('Future')
-    #     res = list(executor.map(lambda x: write_to_file(*x), args))
     write_to_file(train_writer, X_train, y_train)
     write_to_file(val_writer, X_test, y_test)
     return train_idx, test_idx 
