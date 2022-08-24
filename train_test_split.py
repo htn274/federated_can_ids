@@ -58,7 +58,7 @@ def main(indir, outdir, attacks, split_id=1, test_fraction=0.3):
         np.savez_compressed(outdir / 'idex.npz', train=train_idx, test=test_idx)
 
 if __name__ == '__main__':
-    indir = '../Data/CHD_w29_s14_ID_Data/wavelet/'
-    outdir = '../Data/CHD_w29_s14_ID_Data/'
+    indir = '../Data/CHD_w29_s14_ID_Data/wavelet/gaus1/'
+    outdir = '../Data/CHD_w29_s14_ID_Data/wavelet/gaus1/'
     attack_list = ['DoS', 'Fuzzy', 'gear', 'RPM']
     main(indir, outdir, attack_list, split_id=1, test_fraction=0.3)
