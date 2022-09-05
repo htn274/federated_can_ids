@@ -46,7 +46,7 @@ def main(indir, outdir, attacks, split_id=1, test_fraction=0.3):
     train_writer = Writer(outdir=outdir)
     val_writer = Writer(outdir=outdir, is_train=False)
     normals = ['Normal_' + x for x in attacks]
-    files = attacks + normals
+    files = attacks
     for a in files:
         filename = f'{a}.npz'
         filename = Path(indir) / filename
@@ -60,5 +60,6 @@ def main(indir, outdir, attacks, split_id=1, test_fraction=0.3):
 if __name__ == '__main__':
     indir = '../Data/CHD_w29_s14_ID_Data/wavelet/gaus1/'
     outdir = '../Data/CHD_w29_s14_ID_Data/wavelet/gaus1/'
-    attack_list = ['DoS', 'Fuzzy', 'gear', 'RPM']
+    # attack_list = ['DoS', 'Fuzzy', 'gear', 'RPM']
+    attack_list = ['Normal', 'Fuzzy', 'gear']
     main(indir, outdir, attack_list, split_id=1, test_fraction=0.3)
