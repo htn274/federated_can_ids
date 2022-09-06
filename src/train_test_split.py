@@ -1,3 +1,4 @@
+import argparse
 import pandas as pd
 import numpy as np
 from pathlib import Path
@@ -58,8 +59,16 @@ def main(indir, outdir, attacks, split_id=1, test_fraction=0.3):
         np.savez_compressed(outdir / 'idex.npz', train=train_idx, test=test_idx)
 
 if __name__ == '__main__':
-    indir = '../Data/CHD_w29_s14_ID_Data/wavelet/gaus1/'
-    outdir = '../Data/CHD_w29_s14_ID_Data/wavelet/gaus1/'
+    parser = argparse.ArgumentParser('argument for training')
+    parser.add_argument('--indir', type=str)
+    parser.add_argument('--outdir', type=str, default=None)
+    parser.add_argument('--id', type=int)
+    parser.add_argument('--f', type=float)
+    args = parser.parse_args()
+    # indir = '../Data/CHD_w29_s14_ID_Data/wavelet/gaus1/'
+    # outdir = '../Data/CHD_w29_s14_ID_Data/wavelet/gaus1/'
     # attack_list = ['DoS', 'Fuzzy', 'gear', 'RPM']
-    attack_list = ['Normal', 'Fuzzy', 'gear']
-    main(indir, outdir, attack_list, split_id=1, test_fraction=0.3)
+    attack_list = ['Normal', 'Fuzzy', 'Replay']
+    if args.outdir is None:
+        args.outdir = args.indir
+    main(args.indir, args.outdir, attack_list, split_id=args.id, test_fraction=args.f)
