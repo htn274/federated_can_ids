@@ -22,6 +22,12 @@ class Classifier(pl.LightningModule):
     def forward(self, x):
         return self.fc(self.encoder(x))
 
+    def predict(self, x):
+        outs = self.forward(x)
+        _, preds = outs.topk(1, 1, True, True)
+        preds = preds.t().cpu().numpy().squeeze(0)
+        return preds
+
     def training_step(self, batch, batch_idx):
         X, y = batch
         logits = self.forward(X)
@@ -34,6 +40,12 @@ class Classifier(pl.LightningModule):
         logits = self.forward(X)
         loss = self.criterion(logits, y)
         return {'val_loss': loss, 'labels': y, 'logits': logits}
+
+    def predict_step(self, batch, batch_idx):
+        X, y = batch
+        preds = self.predict(X)
+        # print(preds)
+        return {'preds': preds, 'labels': y.numpy()}
 
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
@@ -68,7 +80,6 @@ if __name__ == '__main__':
     data_dir = '../../Data/LISA/Federated_Data/Preprocessed_Data/Kia/1/'
     logger = TensorBoardLogger(save_dir='../save/',) 
     model = Classifier(data_dir=data_dir, num_classes=3)
-    trainer = pl.Trainer(max_epochs=30, accelerator='mps', 
-                        default_root_dir='../save/', logger=logger, 
-                        log_every_n_steps=100,)
+    trainer = pl.Trainer(max_epochs=50, accelerator='mps', 
+                        logger=logger, log_every_n_steps=100, check_val_every_n_epoch=5)
     trainer.fit(model)
