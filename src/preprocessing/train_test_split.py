@@ -47,7 +47,7 @@ def main(indir, outdir, attacks, split_id=1, test_fraction=0.3):
     train_writer = Writer(outdir=outdir)
     val_writer = Writer(outdir=outdir, is_train=False)
     normals = ['Normal_' + x for x in attacks]
-    files = attacks
+    files = attacks + normals
     for a in files:
         filename = f'{a}.npz'
         filename = Path(indir) / filename
@@ -56,6 +56,7 @@ def main(indir, outdir, attacks, split_id=1, test_fraction=0.3):
         X, y = data['X'], data['y']
         y = y.squeeze()
         train_idx, test_idx = process_dataset(X, y, train_writer, val_writer, test_fraction)
+        print(f'Train size: {len(train_idx)}, Test size: {len(test_idx)}')
         np.savez_compressed(outdir / 'idex.npz', train=train_idx, test=test_idx)
 
 if __name__ == '__main__':
