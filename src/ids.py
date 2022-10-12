@@ -1,23 +1,23 @@
 from argparse import ArgumentParser
+from gc import callbacks
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import pytorch_lightning as pl
-from pytorch_lightning import loggers, callbacks
+from pytorch_lightning import loggers
+from pytorch_lightning.callbacks import ModelCheckpoint
 from torchmetrics.functional import f1_score
 
 from dataset import CANDataset
 from torch.utils.data import DataLoader
 from networks.classifier import Classifier
-import mlflow.pytorch
-from mlflow import MlflowClient
-import mlflow
 
 
 class IDS(pl.LightningModule):
     def __init__(self, **kwargs) -> None:
         super(IDS, self).__init__()
+        self.save_hyperparameters()
         self.args = kwargs
         self.model = Classifier(num_classes=self.args['C'])
         self.criterion = nn.CrossEntropyLoss()
@@ -59,11 +59,18 @@ class IDS(pl.LightningModule):
         print(f'Validation f1 score: {f1:.4f}')
     
     def configure_optimizers(self):
-        optimizer = optim.SGD(self.parameters(),
+        self.optimizer = optim.SGD(self.parameters(),
                           lr=self.args['lr'],
                           momentum=0.9,
                           weight_decay=self.args['weight_decay'])
-        return optimizer  
+        self.scheduler = {
+            "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
+                self.optimizer, mode="min", factor=0.5, patience=3, min_lr=1e-6, verbose=True,
+            ),
+            # "interval": "epoch",
+            "monitor": "train_loss",
+        }
+        return [self.optimizer], [self.scheduler]
 
     def prepare_data(self):
         transform = None
@@ -92,17 +99,22 @@ def argument_paser():
     return dict_args
 
 def main():
+    """
+    Centralized training.
+    """
     args = argument_paser()
-    if args['exp_name']:
-        mlflow.set_experiment(args['exp_name'])
-    mlflow.set_tracking_uri(f"{args['save_dir']}/mlruns/")
-    mlflow.pytorch.autolog()
     logger = loggers.TensorBoardLogger(save_dir=args['save_dir'],) 
+    checkpoint_callback = ModelCheckpoint(
+        filename='{epoch:02d}-{val_loss:.2f}-{val_f1:.4f}',
+        every_n_epochs=1,
+        monitor='val_loss', 
+        save_top_k=5)
     model = IDS(**args)
     trainer = pl.Trainer(max_epochs=args['epochs'], accelerator='mps', 
-                        logger=logger, log_every_n_steps=100, check_val_every_n_epoch=5)
-    with mlflow.start_run() as run:
-        trainer.fit(model)
+                        logger=logger, log_every_n_steps=100, 
+                        check_val_every_n_epoch=1,
+                        callbacks=[checkpoint_callback])
+    trainer.fit(model)
 
 if __name__ == '__main__':
     main()    
