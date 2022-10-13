@@ -6,10 +6,10 @@ import numpy as np
 from torch.utils.data import Dataset
 
 class CANDataset(Dataset):
-    def __init__(self, root_dir, is_binary=False, is_train=True, transform=None):
-        self.root_dir = Path(root_dir) / ('train' if is_train else 'val')
+    def __init__(self, root_dir, is_binary=False, transform=None):
+        self.root_dir = Path(root_dir)
         self.is_binary = is_binary
-        self.is_train = is_train
+        # self.is_train = is_train
         self.transform = transform
         self.total_size = len(os.listdir(self.root_dir))
             

@@ -1,5 +1,6 @@
 from argparse import ArgumentParser
 from gc import callbacks
+from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -77,10 +78,12 @@ class IDS(pl.LightningModule):
         binary = False
         if self.args['C'] == 2:
             binary = True
-        self.train_dataset = CANDataset(root_dir=self.args['data_dir'], is_binary=binary,
-                                    is_train=True, transform=transform)
-        self.val_dataset = CANDataset(root_dir=self.args['data_dir'], 
-                                    is_binary=binary, is_train=False, transform=transform)
+        self.train_dataset = CANDataset(root_dir=Path(self.args['data_dir']) / 'train', 
+                                        is_binary=binary,
+                                        transform=transform)
+        self.val_dataset = CANDataset(root_dir=Path(self.args['data_dir']) / 'val', 
+                                        is_binary=binary, 
+                                        transform=transform)
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.args['B'], shuffle=True, 
