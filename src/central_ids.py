@@ -92,6 +92,13 @@ class IDS(pl.LightningModule):
     def val_dataloader(self):
         return DataLoader(self.val_dataset, batch_size=512, shuffle=False,
                         pin_memory=True, sampler=None)
+
+    def get_train_size(self):
+        return len(self.train_dataset)
+
+    def get_val_size(self):
+        return len(self.val_dataset)
+
 def argument_paser():
     parser = ArgumentParser()
     parser.add_argument("--exp_name", type=str, default=None)

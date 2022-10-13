@@ -1,6 +1,20 @@
+from typing import OrderedDict
 from sklearn.metrics import confusion_matrix
 import pandas as pd
 import numpy as np
+import torch
+
+def get_parameters(model):
+    """
+    Return a list of parameters of a model
+    """
+    return [val.cpu().numpy() for _, val in model.state_dict().items()]
+
+def set_parameters(model, params):
+    params_dicts = zip(model.state_dict().keys(), params)
+    state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dicts})
+    model.load_state_dict(state_dict, strict=True)
+
 
 def cal_metric(label, pred):
     cm = confusion_matrix(label, pred)
