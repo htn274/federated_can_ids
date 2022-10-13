@@ -65,7 +65,7 @@ class IDS(pl.LightningModule):
                           weight_decay=self.args['weight_decay'])
         self.scheduler = {
             "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.optimizer, mode="min", factor=0.5, patience=3, min_lr=1e-6, verbose=True,
+                self.optimizer, mode="min", factor=0.5, patience=4, min_lr=1e-6, verbose=True,
             ),
             # "interval": "epoch",
             "monitor": "train_loss",
@@ -74,8 +74,13 @@ class IDS(pl.LightningModule):
 
     def prepare_data(self):
         transform = None
-        self.train_dataset = CANDataset(root_dir=self.args['data_dir'], is_train=True, transform=transform)
-        self.val_dataset = CANDataset(root_dir=self.args['data_dir'], is_train=False, transform=transform)
+        binary = False
+        if self.args['C'] == 2:
+            binary = True
+        self.train_dataset = CANDataset(root_dir=self.args['data_dir'], is_binary=binary,
+                                    is_train=True, transform=transform)
+        self.val_dataset = CANDataset(root_dir=self.args['data_dir'], 
+                                    is_binary=binary, is_train=False, transform=transform)
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.args['B'], shuffle=True, 
@@ -90,9 +95,10 @@ def argument_paser():
     parser.add_argument("--data_dir", type=str, required=True)
     parser.add_argument("--save_dir", type=str, required=True)
     parser.add_argument("--C", type=int, required=True)
-    parser.add_argument("--epochs", type=int, required=True)
-    parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--B", type=int, default=128)
+    parser.add_argument("--epochs", type=int, required=True)
+    parser.add_argument("--val_freq", type=int, default=5)
+    parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--weight_decay", type=float, default=1e-4)
     args = parser.parse_args()
     dict_args = vars(args)
@@ -106,13 +112,13 @@ def main():
     logger = loggers.TensorBoardLogger(save_dir=args['save_dir'],) 
     checkpoint_callback = ModelCheckpoint(
         filename='{epoch:02d}-{val_loss:.2f}-{val_f1:.4f}',
-        every_n_epochs=1,
+        every_n_epochs=args['val_freq'],
         monitor='val_loss', 
         save_top_k=5)
     model = IDS(**args)
     trainer = pl.Trainer(max_epochs=args['epochs'], accelerator='mps', 
                         logger=logger, log_every_n_steps=100, 
-                        check_val_every_n_epoch=1,
+                        check_val_every_n_epoch=args['val_freq'],
                         callbacks=[checkpoint_callback])
     trainer.fit(model)
 
