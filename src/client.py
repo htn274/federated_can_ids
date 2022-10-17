@@ -14,7 +14,7 @@ class DistributedIDS(fl.client.NumPyClient):
         self.model = IDS(**kwargs)
         self.args = kwargs
 
-    def get_parameters(self):
+    def get_parameters(self, config):
         return get_parameters(self.model) 
 
     def set_parameters(self, params):
@@ -23,7 +23,8 @@ class DistributedIDS(fl.client.NumPyClient):
     def fit(self, params, config):
         set_parameters(self.model, params)
 
-        trainer = pl.Trainer(max_epochs=self.args['epochs'], accelerator='mps',
+        trainer = pl.Trainer(max_epochs=self.args['epochs'], 
+                            accelerator=self.args['device'],
                             check_val_every_n_epoch=self.args['val_freq'],)
         trainer.fit(self.model)
         
@@ -37,7 +38,7 @@ class DistributedIDS(fl.client.NumPyClient):
         """
         print('Local evaluation')
         set_parameters(self.model, params)
-        trainer = pl.Trainer(accelerator='mps')
+        trainer = pl.Trainer(accelerator=self.args['device'])
         print('Initalize: DONE')
         results = trainer.validate(self.model)
         f1 = results[0]['val_f1']
@@ -50,12 +51,13 @@ def argument_paser():
     parser = ArgumentParser()
     parser.add_argument("--data_dir", type=str, required=True)
     # parser.add_argument("--save_dir", type=str, required=True)
-    parser.add_argument("--C", type=int, required=True)
+    parser.add_argument("--C", type=int, default=2)
     parser.add_argument("--B", type=int, default=32)
     parser.add_argument("--epochs", type=int, required=True)
     parser.add_argument("--val_freq", type=int, default=5)
     parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--weight_decay", type=float, default=6e-4)
+    parser.add_argument("--device", type=str, default="cuda")
     args = parser.parse_args()
     dict_args = vars(args)
     return dict_args
@@ -63,4 +65,4 @@ def argument_paser():
 if __name__ == '__main__':
     args = argument_paser()
     client = DistributedIDS(**args)
-    fl.client.start_numpy_client(DEFAULT_SERVER_ADDRESS, client)
+    fl.client.start_numpy_client(server_address=DEFAULT_SERVER_ADDRESS, client=client)

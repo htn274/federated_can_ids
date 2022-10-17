@@ -22,6 +22,7 @@ class IDS(pl.LightningModule):
         self.args = kwargs
         self.model = Classifier(num_classes=self.args['C'])
         self.criterion = nn.CrossEntropyLoss()
+        self.prepare_data()
 
     def forward(self, x):
         return self.model(x)
