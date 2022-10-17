@@ -28,4 +28,4 @@ class CANDataset(Dataset):
         return X_tensor, y_tensor
     
     def __len__(self):
-        return int(self.total_size)
+        return int(0.1*self.total_size)
