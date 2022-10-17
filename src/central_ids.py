@@ -90,7 +90,7 @@ class IDS(pl.LightningModule):
                         pin_memory=True, sampler=None)
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=512, shuffle=False,
+        return DataLoader(self.val_dataset, batch_size=self.args['B'], shuffle=False,
                         pin_memory=True, sampler=None)
 
     def get_train_size(self):

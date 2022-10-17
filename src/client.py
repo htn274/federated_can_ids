@@ -23,7 +23,8 @@ class DistributedIDS(fl.client.NumPyClient):
     def fit(self, params, config):
         set_parameters(self.model, params)
 
-        trainer = pl.Trainer(max_epochs=1, accelerator='mps')
+        trainer = pl.Trainer(max_epochs=self.args['epochs'], accelerator='mps',
+                            check_val_every_n_epoch=self.args['val_freq'],)
         trainer.fit(self.model)
         
         trained_params = get_parameters(self.model)
@@ -34,8 +35,10 @@ class DistributedIDS(fl.client.NumPyClient):
         """
         Evaluate on local test set
         """
+        print('Local evaluation')
         set_parameters(self.model, params)
         trainer = pl.Trainer(accelerator='mps')
+        print('Initalize: DONE')
         results = trainer.validate(self.model)
         f1 = results[0]['val_f1']
         loss = results[0]['val_loss']
@@ -48,8 +51,8 @@ def argument_paser():
     parser.add_argument("--data_dir", type=str, required=True)
     # parser.add_argument("--save_dir", type=str, required=True)
     parser.add_argument("--C", type=int, required=True)
-    parser.add_argument("--B", type=int, default=128)
-    # parser.add_argument("--epochs", type=int, required=True)
+    parser.add_argument("--B", type=int, default=32)
+    parser.add_argument("--epochs", type=int, required=True)
     parser.add_argument("--val_freq", type=int, default=5)
     parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--weight_decay", type=float, default=6e-4)
