@@ -77,7 +77,7 @@ if __name__ == '__main__':
     )
     hist = fl.server.start_server(
         server_address=DEFAULT_SERVER_ADDRESS,
-        config=fl.server.ServerConfig(num_rounds=5),
+        config=fl.server.ServerConfig(num_rounds=50),
         strategy=strategy
     )
     print("Saving training history")

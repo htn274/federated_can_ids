@@ -50,7 +50,7 @@ class IDS(pl.LightningModule):
     def predict_step(self, batch, batch_idx):
         X, y = batch
         preds = self.predict(X)
-        return {'preds': preds, 'labels': y.numpy()}
+        return {'preds': preds, 'labels': y.cpu().numpy()}
 
     def validation_epoch_end(self, outputs):
         avg_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
