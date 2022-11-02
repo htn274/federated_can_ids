@@ -49,7 +49,8 @@ class DistributedIDS(fl.client.NumPyClient):
 
 def argument_paser():
     parser = ArgumentParser()
-    parser.add_argument("--data_dir", type=str, required=True)
+    parser.add_argument("--train_dir", type=str, required=True)
+    parser.add_argument("--val_dir", type=str, required=True)
     # parser.add_argument("--save_dir", type=str, required=True)
     parser.add_argument("--C", type=int, default=2)
     parser.add_argument("--B", type=int, default=32)

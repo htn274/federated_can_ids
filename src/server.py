@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 import pickle
 from typing import OrderedDict
 import flwr as fl
@@ -18,14 +19,14 @@ def load_data(car_models, data_dir):
     transform = None
     data_loaders = []
     for car_model in car_models:
-        test_dataset = CANDataset(root_dir=Path(data_dir.format(car_model))/'test', is_binary=True, transform=transform)
+        test_dataset = CANDataset(root_dir=Path(data_dir)/car_model/'test', is_binary=True, transform=transform)
         test_loader = DataLoader(test_dataset, batch_size=512, shuffle=False, 
                                 pin_memory=True, sampler=None)
         data_loaders.append(test_loader)
     return data_loaders
 
 def evaluate(model, test_loaders:list):
-    # res = []
+    f1_list = []
     total_labels = np.array([])
     total_preds = np.array([])
     for test_loader in test_loaders:
@@ -34,16 +35,18 @@ def evaluate(model, test_loaders:list):
         labels = np.concatenate([x['labels'] for x in results])
         preds = np.concatenate([x['preds'] for x in results])
         f1 = f1_score(labels, preds)
-        # res.append(f1)
+        f1_list.append(f1)
         total_labels = np.concatenate([total_labels, labels])
         total_preds = np.concatenate([total_preds, preds])
     f1_global = f1_score(total_labels, total_preds)
+    f1_avg = np.mean(f1_list)
     # res.append(f1_global)
-    return f1_global
+    return {'f1_global': f1_global,
+            'f1_avg': f1_avg}
 
-def get_evaluate_fn():
+def get_evaluate_fn(data_dir):
     car_models = ['Kia', 'Tesla', 'BMW'] 
-    data_dir = '../../Data/LISA/{}/1/'
+    # data_dir = '../../Data/LISA/{}/'
     test_loaders = load_data(car_models=car_models, data_dir=data_dir)
     kwargs = {'C': 2}
     model = IDS(**kwargs)
@@ -54,8 +57,7 @@ def get_evaluate_fn():
         state_dict = OrderedDict({k:  torch.tensor(np.atleast_1d(v)) for k, v in param_dict})
         model.load_state_dict(state_dict, strict=True)
         model.to(DEVICE)
-        f1_global = evaluate(model, test_loaders)
-        metrics = {'f1_global': f1_global}
+        metrics = evaluate(model, test_loaders)
         return 0.0, metrics
     return centralized_eval
 
@@ -64,21 +66,33 @@ def save_hist(history, save_dir):
     pickle.dump(history, f)
     f.close()
 
+def argument_paser():
+    parser = ArgumentParser()
+    parser.add_argument("--save_dir", type=str, required=True)
+    parser.add_argument("--test_dir", type=str, required=True)
+    parser.add_argument("--num_rounds", type=int, required=True)
+    args = parser.parse_args()
+    dict_args = vars(args)
+    return dict_args
+
 if __name__ == '__main__':
-    save_dir = '../save/federated/'
+    # save_dir = '../save/federated/'
+    args = argument_paser()
+    save_dir = Path(args['save_dir'])
+    save_dir.mkdir(parents=True, exist_ok=True)
     strategy = SaveModelStrategy(
         fraction_fit = 1.0,
         fraction_evaluate=1.0,
         min_fit_clients=3,
         min_available_clients=3,
-        evaluate_fn = get_evaluate_fn(),
+        evaluate_fn = get_evaluate_fn(args['test_dir']),
         # on_fit_config_fn=fit_config,
-        save_dir=Path(save_dir),
+        save_dir=Path(args['save_dir']),
     )
     hist = fl.server.start_server(
         server_address=DEFAULT_SERVER_ADDRESS,
-        config=fl.server.ServerConfig(num_rounds=50),
+        config=fl.server.ServerConfig(num_rounds=args['num_rounds']),
         strategy=strategy
     )
     print("Saving training history")
-    save_hist(hist, save_dir)
+    save_hist(hist, args['save_dir'])

@@ -22,7 +22,7 @@ class IDS(pl.LightningModule):
         self.args = kwargs
         self.model = Classifier(num_classes=self.args['C'])
         self.criterion = nn.CrossEntropyLoss()
-        if 'data_dir' in kwargs:
+        if 'train_dir' in kwargs:
             self._prepare_data()
 
     def forward(self, x):
@@ -80,10 +80,10 @@ class IDS(pl.LightningModule):
         binary = False
         if self.args['C'] == 2:
             binary = True
-        self.train_dataset = CANDataset(root_dir=Path(self.args['data_dir']) / 'train', 
+        self.train_dataset = CANDataset(root_dir=Path(self.args['train_dir']), 
                                         is_binary=binary,
                                         transform=transform)
-        self.val_dataset = CANDataset(root_dir=Path(self.args['data_dir']) / 'val', 
+        self.val_dataset = CANDataset(root_dir=Path(self.args['val_dir']), 
                                         is_binary=binary, 
                                         transform=transform)
 
@@ -104,7 +104,9 @@ class IDS(pl.LightningModule):
 def argument_paser():
     parser = ArgumentParser()
     parser.add_argument("--exp_name", type=str, default=None)
-    parser.add_argument("--data_dir", type=str, required=True)
+    # parser.add_argument("--data_dir", type=str, required=True)
+    parser.add_argument("--train_dir", type=str, required=True)
+    parser.add_argument("--val_dir", type=str, required=True)
     parser.add_argument("--save_dir", type=str, required=True)
     parser.add_argument("--C", type=int, required=True)
     parser.add_argument("--B", type=int, default=128)
@@ -112,6 +114,7 @@ def argument_paser():
     parser.add_argument("--val_freq", type=int, default=5)
     parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--weight_decay", type=float, default=1e-4)
+    parser.add_argument("--device", type=str, default="cuda")
     args = parser.parse_args()
     dict_args = vars(args)
     return dict_args
@@ -128,7 +131,7 @@ def main():
         monitor='val_loss', 
         save_top_k=5)
     model = IDS(**args)
-    trainer = pl.Trainer(max_epochs=args['epochs'], accelerator='mps', 
+    trainer = pl.Trainer(max_epochs=args['epochs'], accelerator=args['device'], 
                         logger=logger, log_every_n_steps=100, 
                         check_val_every_n_epoch=args['val_freq'],
                         callbacks=[checkpoint_callback])
