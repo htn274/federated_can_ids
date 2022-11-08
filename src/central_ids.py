@@ -22,8 +22,14 @@ class IDS(pl.LightningModule):
         self.args = kwargs
         self.model = Classifier(num_classes=self.args['C'])
         self.criterion = nn.CrossEntropyLoss()
+        self.automatic_optimization = False
         if 'train_dir' in kwargs:
             self._prepare_data()
+
+    def update_args(self, config): 
+        for k, v in config.items():
+            if k in self.args:
+                self.args[k] = v
 
     def forward(self, x):
         return self.model(x)
@@ -35,10 +41,14 @@ class IDS(pl.LightningModule):
         return preds
 
     def training_step(self, batch, batch_idx):
+        opt = self.optimizers()
+        opt.zero_grad()
         X, y = batch
         logits = self.forward(X)
         loss = self.criterion(logits, y)
         self.log('train_loss', loss, logger=True)
+        self.manual_backward(loss)
+        opt.step()
         return loss 
 
     def validation_step(self, batch, batch_idx):
@@ -62,6 +72,7 @@ class IDS(pl.LightningModule):
         print(f'Validation f1 score: {f1:.4f}')
     
     def configure_optimizers(self):
+        print('Set the optiimzer with the lr = ', self.args['lr'])
         self.optimizer = optim.SGD(self.parameters(),
                           lr=self.args['lr'],
                           momentum=0.9,
@@ -88,11 +99,11 @@ class IDS(pl.LightningModule):
                                         transform=transform)
 
     def train_dataloader(self):
-        return DataLoader(self.train_dataset, batch_size=self.args['B'], shuffle=True, 
+        return DataLoader(self.train_dataset, batch_size=self.args['batch_size'], shuffle=True, 
                         pin_memory=True, sampler=None)
 
     def val_dataloader(self):
-        return DataLoader(self.val_dataset, batch_size=self.args['B'], shuffle=False,
+        return DataLoader(self.val_dataset, batch_size=self.args['batch_size'], shuffle=False,
                         pin_memory=True, sampler=None)
 
     def get_train_size(self):
@@ -109,7 +120,7 @@ def argument_paser():
     parser.add_argument("--val_dir", type=str, required=True)
     parser.add_argument("--save_dir", type=str, required=True)
     parser.add_argument("--C", type=int, required=True)
-    parser.add_argument("--B", type=int, default=128)
+    parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--epochs", type=int, required=True)
     parser.add_argument("--val_freq", type=int, default=5)
     parser.add_argument("--lr", type=float, default=5e-4)

@@ -20,14 +20,18 @@ class DistributedIDS(fl.client.NumPyClient):
     def set_parameters(self, params):
         set_parameters(self.model, params)
     
+    def get_hyperparam(self, config):
+        for k, v in config.items():
+            if k in self.args:
+                self.args[k] = v
+    
     def fit(self, params, config):
-        set_parameters(self.model, params)
-
-        trainer = pl.Trainer(max_epochs=self.args['epochs'], 
+        self.set_parameters(params)
+        self.model.update_args(config)
+        trainer = pl.Trainer(max_epochs=config['epochs'], 
                             accelerator=self.args['device'],
                             check_val_every_n_epoch=self.args['val_freq'],)
         trainer.fit(self.model)
-        
         trained_params = get_parameters(self.model)
         num_examples = self.model.get_train_size()
         return trained_params, num_examples, {}
@@ -53,11 +57,11 @@ def argument_paser():
     parser.add_argument("--val_dir", type=str, required=True)
     # parser.add_argument("--save_dir", type=str, required=True)
     parser.add_argument("--C", type=int, default=2)
-    parser.add_argument("--B", type=int, default=32)
-    parser.add_argument("--epochs", type=int, required=True)
+    parser.add_argument("--batch_size", type=int, default=None)
+    parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--val_freq", type=int, default=5)
     parser.add_argument("--lr", type=float, default=5e-4)
-    parser.add_argument("--weight_decay", type=float, default=6e-4)
+    parser.add_argument("--weight_decay", type=float, default=1e-4)
     parser.add_argument("--device", type=str, default="cuda")
     args = parser.parse_args()
     dict_args = vars(args)

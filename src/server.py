@@ -71,6 +71,10 @@ def argument_paser():
     parser.add_argument("--save_dir", type=str, required=True)
     parser.add_argument("--test_dir", type=str, required=True)
     parser.add_argument("--num_rounds", type=int, required=True)
+    parser.add_argument("--batch_size", type=int, required=True)
+    parser.add_argument("--epochs", type=int, required=True)
+    parser.add_argument("--lr", type=float, required=True)
+    parser.add_argument("--lr_decay", type=float, default=0.1)
     args = parser.parse_args()
     dict_args = vars(args)
     return dict_args
@@ -80,13 +84,22 @@ if __name__ == '__main__':
     args = argument_paser()
     save_dir = Path(args['save_dir'])
     save_dir.mkdir(parents=True, exist_ok=True)
+
+    def fit_config(rnd):
+        config = {
+            "batch_size": args['batch_size'],
+            "epochs": args['epochs'],
+            "lr": args['lr'] if rnd <= 1 else args['lr'] * args['lr_decay']
+        }
+        return config
+
     strategy = SaveModelStrategy(
         fraction_fit = 1.0,
         fraction_evaluate=1.0,
         min_fit_clients=3,
         min_available_clients=3,
         evaluate_fn = get_evaluate_fn(args['test_dir']),
-        # on_fit_config_fn=fit_config,
+        on_fit_config_fn=fit_config,
         save_dir=Path(args['save_dir']),
     )
     hist = fl.server.start_server(
