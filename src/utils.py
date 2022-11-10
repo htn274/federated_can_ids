@@ -46,7 +46,7 @@ def print_results(results, classes):
 
 def test_model(data_dir, model):
     transform = None
-    test_dataset = CANDataset(root_dir=Path(data_dir)/'test', is_binary=True, transform=transform)
+    test_dataset = CANDataset(root_dir=Path(data_dir), is_binary=True, transform=transform)
     test_loader = DataLoader(test_dataset, batch_size=512, shuffle=False, 
                         pin_memory=True, sampler=None)
     trainer = pl.Trainer(enable_checkpointing=False, logger=False)
