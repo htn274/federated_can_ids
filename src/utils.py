@@ -1,6 +1,6 @@
 from typing import OrderedDict
 from anyio import Path
-from sklearn.metrics import confusion_matrix, f1_score
+from sklearn.metrics import confusion_matrix, precision_recall_fscore_support
 import pandas as pd
 import numpy as np
 import torch
@@ -19,24 +19,6 @@ def set_parameters(model, params):
     state_dict = OrderedDict({k: torch.tensor(v) for k, v in params_dicts})
     model.load_state_dict(state_dict, strict=True)
 
-
-def cal_metric(label, pred):
-    cm = confusion_matrix(label, pred)
-    recall = np.diag(cm) / np.sum(cm, axis = 1)
-    precision = np.diag(cm) / np.sum(cm, axis = 0)
-    f1 = 2*recall*precision / (recall + precision)
-    
-    total_actual = np.sum(cm, axis=1)
-    true_predicted = np.diag(cm)
-    fnr = (total_actual - true_predicted)*100/total_actual
-                   
-    return cm, {
-    'fnr': np.array(fnr),
-    'rec': recall,
-    'pre': precision,
-    'f1': f1
-    }
-
 def print_results(results, classes):
     print('\t' + '\t'.join(map(str, results.keys())))
     for idx, c in enumerate(classes):
@@ -53,7 +35,5 @@ def test_model(data_dir, model):
     results = trainer.predict(model, dataloaders=test_loader)
     labels = np.concatenate([x['labels'] for x in results])
     preds = np.concatenate([x['preds'] for x in results])
-    tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
-    f1 = f1_score(labels, preds)
-    err = (fn + fp) / len(preds)
-    return (f1, err)
+    cm = confusion_matrix(labels, preds)
+    return cm, precision_recall_fscore_support(labels, preds, average='binary')[:-1]
