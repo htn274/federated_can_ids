@@ -19,7 +19,7 @@ def load_data(car_models, data_dir):
     transform = None
     data_loaders = []
     for car_model in car_models:
-        test_dataset = CANDataset(root_dir=Path(data_dir)/car_model/'test', is_binary=True, transform=transform)
+        test_dataset = CANDataset(root_dir=data_dir.format(car_model), is_binary=True, transform=transform)
         test_loader = DataLoader(test_dataset, batch_size=512, shuffle=False, 
                                 pin_memory=True, sampler=None)
         data_loaders.append(test_loader)
