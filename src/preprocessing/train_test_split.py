@@ -29,6 +29,14 @@ def write_to_file(writer, X, y):
     return True
 
 def train_test_split(N, val_fraction, test_fraction):
+    """
+    Input: 
+    N: the size of the dataset
+    val_fraction: the portion for validation set
+    test_fraction: the portion for test set
+    Output:
+    Return the index for train, val, and test set
+    """
     test_size = int(N * test_fraction)
     val_size = int(N * val_fraction)
     indices = np.random.permutation(N) 
@@ -37,51 +45,37 @@ def train_test_split(N, val_fraction, test_fraction):
     train_idx = indices[val_size + test_size:]
     return [train_idx, val_idx, test_idx]
     
-def process_dataset(X, y, writer_list, val_fraction, test_fraction, shuffle):
-    if shuffle:
-        indices = np.random.permutation(len(y))
-        X = X[indices]
-        y = y[indices]
-    train_val_test_idx = train_test_split(len(y), val_fraction, test_fraction)
-    title = ['Train', 'Val', 'Test']
-    for (name, idx, writer) in zip(title, train_val_test_idx, writer_list):
-        print(f"{name}: {len(idx)}")
-        X_subset, y_subset = X[idx], y[idx]
-        write_to_file(writer, X_subset, y_subset)
-    return train_val_test_idx
+def resampling_data(car_model, in_dir, file_type, N_samples, attack_normal_ratio):
+    """ 
+    car_model: BMW, Tesla, Kia
+    in_dir: directory for input data
+    file_type: train, test, val
+    N_samples: the size of total sampling data
+    """
+    in_dir = in_dir + '/{}/'  # to adapt with car_model
+    in_path = Path(in_dir.format(car_model))
+    classes = ['Normal', 'Fuzzy', 'Replay']
+    def read_file(f):
+        data = np.load(in_path / f)
+        return data['X'], data['y']
 
-def main(indir, outdir, attacks, split_id, val_fraction, test_fraction, shuffle=True):
-    outdir = Path(outdir) / str(split_id)
-    train_writer = Writer(outdir=outdir, type_name='train')
-    val_writer = Writer(outdir=outdir, type_name='val')
-    test_writer = Writer(outdir=outdir, type_name='test')
-    writer_list = [train_writer, val_writer, test_writer]
-    # normals = ['Normal_' + x for x in attacks]
-    files = attacks #+ normals
-    for a in files:
-        filename = f'{a}.npz'
-        filename = Path(indir) / filename
-        print('Processing: ', filename)
-        data = np.load(filename)
-        X, y = data['X'], data['y']
-        y = y.squeeze()
-        _ = process_dataset(X, y, writer_list, val_fraction, test_fraction, shuffle)
-        # print(f'Train size: {len(train_idx)}, Test size: {len(test_idx)}')
-        # np.savez_compressed(outdir / 'idex.npz', train=train_idx, test=test_idx)
+    def sampling_data(d, indices):
+        return d[indices]
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser('argument for training')
-    parser.add_argument('--indir', type=str)
-    parser.add_argument('--outdir', type=str, default=None)
-    parser.add_argument('--id', type=int)
-    parser.add_argument('--test_fraction', type=float, default=0.2)
-    parser.add_argument('--val_fraction', type=float, default=0.1)
-    args = parser.parse_args()
-    # indir = '../Data/CHD_w29_s14_ID_Data/wavelet/gaus1/'
-    # outdir = '../Data/CHD_w29_s14_ID_Data/wavelet/gaus1/'
-    # attack_list = ['DoS', 'Fuzzy', 'gear', 'RPM']
-    attack_list = ['Normal', 'Fuzzy', 'Replay']
-    if args.outdir is None:
-        args.outdir = args.indir
-    main(args.indir, args.outdir, attack_list, split_id=args.id, 
-        val_fraction=args.val_fraction, test_fraction=args.test_fraction)
+    file_name = f'{file_type}_{{}}.npz'
+    files = [file_name.format(c) for c in classes]
+    data = list(map(lambda x: read_file(x), files))
+    
+    # Calculate the size of each class based on the attack/normal ratio
+    class_distribution = np.array([1 - attack_normal_ratio, attack_normal_ratio / 2, attack_normal_ratio / 2])
+    class_size = (N_samples * class_distribution).astype('int')
+    # Sampling the indices according to the generated size
+    indices = [np.arange(len(d[0])) for d in data]
+    sampling_indices = [np.random.choice(idx, 
+                                        size=size if size <= len(idx) else len(idx), 
+                                        replace=False) 
+                                        for idx, size in zip(indices, class_size)]
+    # Take the data from sampling_indices
+    X_subset = list(map(lambda p: sampling_data(p[0][0], p[1]), zip(data, sampling_indices)))
+    y_subset = list(map(lambda p: sampling_data(p[0][1], p[1]), zip(data, sampling_indices)))
+    return class_distribution, class_size, X_subset, y_subset
