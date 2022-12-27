@@ -35,5 +35,8 @@ def test_model(data_dir, model):
     results = trainer.predict(model, dataloaders=test_loader)
     labels = np.concatenate([x['labels'] for x in results])
     preds = np.concatenate([x['preds'] for x in results])
-    cm = confusion_matrix(labels, preds)
-    return cm, precision_recall_fscore_support(labels, preds, average='binary')[:-1]
+    tn, fp, fn, tp = confusion_matrix(labels, preds).ravel()
+    prec, rec, f1 = precision_recall_fscore_support(labels, preds, average='binary')[:-1] 
+    err = (fp + fn) / (tn + fp + fn + tp)
+    far = fp / (tn + fp)
+    return (err, far, prec, rec, f1)

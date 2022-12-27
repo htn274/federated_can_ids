@@ -89,15 +89,15 @@ if __name__ == '__main__':
         config = {
             "batch_size": args['batch_size'],
             "epochs": args['epochs'],
-            "lr": args['lr'] if rnd <= 1 else args['lr'] * args['lr_decay']
+            "lr": args['lr'] #if rnd <= 1 else args['lr'] * args['lr_decay']
         }
         return config
 
     strategy = SaveModelStrategy(
         fraction_fit = 1.0,
         fraction_evaluate=1.0,
-        min_fit_clients=3,
-        min_available_clients=3,
+        min_fit_clients=2,
+        min_available_clients=2,
         evaluate_fn = get_evaluate_fn(args['test_dir']),
         on_fit_config_fn=fit_config,
         save_dir=Path(args['save_dir']),
